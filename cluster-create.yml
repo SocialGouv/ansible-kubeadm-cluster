@@ -117,6 +117,15 @@
       retries: 30
       delay: 10        
 
+    - name: Read CA Cert hash from kubernetes PKI
+      shell: "openssl x509 -pubkey -in /etc/kubernetes/pki/ca.crt | openssl rsa -pubin -outform der 2>/dev/null | openssl dgst -sha256 -hex | sed 's/^.* //'"
+      register: ca_cert_hash
+
+    - name: Save ca_cert_hash
+      shell: "echo ca_cert_hash{{ ':' }} {{ ca_cert_hash.stdout }} > cfg/{{ cluster_name }}/ca_cert_hash.yml"
+      delegate_to: 127.0.0.1
+      become: false
+
 # Implements Step 4 of http://kubernetes.io/docs/getting-started-guides/kubeadm/
 # (4/4) Joining your nodes
         
@@ -129,7 +138,10 @@
     - name: Read token from file
       include_vars: cfg/{{ cluster_name }}/token.yml
       
-    - name: Read master_ip_address from file
+    - name: Read CA cert hash from file
+      include_vars: cfg/{{ cluster_name }}/ca_cert_hash.yml
+
+      - name: Read master_ip_address from file
       include_vars: cfg/{{ cluster_name }}/master_ip_address.yml
 
   tasks:
@@ -143,7 +155,7 @@
       run_once: true
 
     - name: Join nodes to cluster
-      command: kubeadm join --token {{ admission_token }} {{ master_ip_address }}:6443
+      command: kubeadm join --token {{ admission_token }} {{ master_ip_address }}:6443 --discovery-token-ca-cert-hash sha256:{{ ca_cert_hash }}
       args:
         creates: /etc/kubernetes/kubelet.conf # Not 100% sure that the creates clause is correct
       register: node_join
