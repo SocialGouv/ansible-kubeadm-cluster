@@ -6,17 +6,20 @@
 # cat <<EOF > /etc/yum.repos.d/kubernetes.repo
 # [kubernetes]
 # name=Kubernetes
-# baseurl=http://yum.kubernetes.io/repos/kubernetes-el7-x86_64
+# baseurl=https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
 # enabled=1
 # gpgcheck=1
 # repo_gpgcheck=1
-# gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg
-#        https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+# gpgkey=https://packages.cloud.google.com/yum/doc/yum-key.gpg https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+# exclude=kube*
 # EOF
 
+# # Set SELinux in permissive mode (effectively disabling it)
 # setenforce 0
-# yum install -y docker kubelet kubeadm kubectl kubernetes-cni
-# systemctl enable docker && systemctl start docker
+# sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config
+
+# yum install -y kubelet kubeadm kubectl --disableexcludes=kubernetes
+
 # systemctl enable kubelet && systemctl start kubelet
 
 - name: Add Kubernetes yum repo
@@ -24,7 +27,7 @@
     name: Kubernetes
     description: Kubernetes
     file: kubernetes
-    baseurl: http://yum.kubernetes.io/repos/kubernetes-el7-x86_64
+    baseurl: https://packages.cloud.google.com/yum/repos/kubernetes-el7-x86_64
     enabled: true
     gpgcakey: https://packages.cloud.google.com/yum/doc/yum-key.gpg
     gpgkey: https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg  
@@ -34,6 +37,13 @@
 - name: Workaround to https://github.com/kubernetes/kubernetes/pull/33555
   command: setenforce 0
   ignore_errors: true
+
+- name:  Change SE linux config file
+  replace:
+    dest: /etc/sysconfig/selinux
+    regexp: 'SELINUX=enforcing'
+    replace: 'SELINUX=permissive'
+    backup: yes
 
 - name: Install kubeadm packages
   yum:
