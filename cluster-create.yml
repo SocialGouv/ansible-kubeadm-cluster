@@ -57,13 +57,17 @@
         master_ip_address: "{{ ansible_default_ipv4['address'] }}"
       when: master_ip_address_configured is not defined
 
+    - set_fact:
+        pod_network_cidr_args: " --pod-network-cidr={{ pod_network_cidr }}"
+      when: pod_network_cidr is defined and pod_network_plugin == 'calico'
+
     - name: Save master_ip_address
       shell: "echo master_ip_address{{ ':' }} {{ master_ip_address }} > cfg/{{ cluster_name }}/master_ip_address.yml"
       delegate_to: 127.0.0.1
       become: false
 
     - name: Initialize master
-      command: kubeadm init --token {{ admission_token }}
+      command: kubeadm init --token {{ admission_token }} {{ pod_network_cidr_args }}
       args:
         creates: /etc/kubernetes/pki # Not 100% sure that the creates clause is correct
       register: master_init
@@ -84,8 +88,19 @@
     # Implements Step 3 of http://kubernetes.io/docs/getting-started-guides/kubeadm/
     # (3/4) Installing a pod network
 
+    - name: Install pod network - rbac kdd
+      command: /usr/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f {{ pod_network_rbac_yamlfile }}
+
+      register: pod_network - rbac kdd
+      tags:
+        - master
+        - network
+      ignore_errors: true
+      when: pod_network_plugin == 'calico'
+
     - name: Install pod network
-      command: /usr/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f https://git.io/weave-kube-1.6
+      command: /usr/bin/kubectl --kubeconfig /etc/kubernetes/admin.conf apply -f {{ pod_network_yamlfile }}
+
       register: pod_network
       tags:
         - master

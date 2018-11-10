@@ -25,6 +25,15 @@ master.example.com
 #kubernetes_dns_pod=kube-dns
 kubernetes_dns_pod=coredns
 
+# You can choose between weave and calico as pod network component
+#pod_network_plugin=weave
+pod_network_plugin=calico
+pod_network_cidr=192.168.0.0/16
+#pod_network_yamlfile=https://git.io/weave-kube-1.6
+pod_network_yamlfile=https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/kubernetes-datastore/calico-networking/1.7/calico.yaml
+pod_network_rbac_yamlfile=https://docs.projectcalico.org/v3.3/getting-started/kubernetes/installation/hosted/rbac-kdd.yaml
+
+
 [k8s_test_node]
 node1.example.com
 node2.example.com
